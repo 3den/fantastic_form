@@ -1,7 +1,66 @@
 // FantasticForm Constructor
-var FantasticForm = function(selector) {
-  this.selector = selector;
-  this.validators = FantasticForm.validators;
+var FantasticForm = function(selector, options) {
+  var $ = jQuery
+    , $el = $(selector)
+    , that = this
+    , validators = FantasticForm.validators
+    , setInvalid = FantasticForm.setInvalid
+    , setValid = FantasticForm.setValid;
+
+  function check(e, $field, callback) {
+    try {
+      callback($field);
+      setValid($field);
+    } catch (err) {
+      setInvalid(err, e, $field);
+    }
+  };
+
+  /**
+   * Validate On Change
+   * Binds the field validations on change events
+   *
+   * returns nothing.
+   **/
+  this.validateOnChange = function() {
+    $(selector).on("change", "[validate]", function(e){
+      var $field = $(e.target)
+        , fieldValidators = $field.attr('validate').match(/\w+/g);
+
+      $.each(fieldValidators, function(i, key){
+        if(validators[key]) check(e, $field, validators[key]);
+      });
+    });
+  };
+
+  /**
+   * Validate On Submit
+   * Binds the form validation on submit events
+   *
+   * returns nothing.
+   **/
+  this.validateOnSubmit = function() {
+    $("body").on("submit", selector, function(e){
+      var $form = $(e.target);
+
+      $.each(validators, function(key, callback) {
+        $form.find("[validate*="+ key +"]").each(function(){
+          var $field = $(this);
+          check(e, $field, callback);
+        });
+      });
+    });
+  };
+
+  /**
+   * Validate
+   * Binds the validation events
+   *
+   * returns nothing.
+   **/
+  this.validate = function() {
+    this.validateOnSubmit();
+  };
 };
 
 // The fantastic validatos
@@ -14,38 +73,22 @@ FantasticForm.validators = {
   }
 };
 
+FantasticForm.setInvalid = function(err, e, $el) {
+  $el.addClass("error");
+  e.isDefaultPrevented() || e.preventDefault();
+};
+
+FantasticForm.setValid = function($el) {
+  $el.removeClass("error");
+};
+
 (function($){
-  FantasticForm.prototype.setInvalid = function(e, $el) {
-    $el.addClass("error");
-    e.isDefaultPrevented() || e.preventDefault();
+  $.fn.validateOnChange = function(options){
+    var form = new FantasticForm(this);
+    form.validateOnChange(options);
+
+    return this;
   };
-
-  FantasticForm.prototype.setValid = function($el) {
-    $el.removeClass("error");
-  };
-
-  // Binds the validation callback
-  FantasticForm.prototype.validate = function(onEvent) {
-    var that = this;
-    onEvent = onEvent || "submit"
-
-    $("body").on(onEvent, this.selector, function(e){
-      var $form = $(e.target);
-      $.each(that.validators, function(key, callback) {
-        $("[validate*="+ key +"]").each(function(){
-          var $el = $(this);
-          try {
-            callback($el);
-            that.setValid($el);
-          } catch (err) {
-            that.setInvalid(e, $el);
-          }
-        });
-      });
-    });
-  };
-
-  $.fn.fantasticForm = {}
   $.fn.fantasticForm.validate = function(options){
     var form = new FantasticForm(this);
     form.validate(options);
